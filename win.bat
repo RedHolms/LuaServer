@@ -14,16 +14,18 @@
 @echo Binaries will be stored in "out" directory
 
 @rem Compiling DLL without Lua Stand-Alone interpreter
-@%MYCOMPILE% /DLUA_BUILD_AS_DLL ../src/l*.c
+@%MYCOMPILE% /DLUA_BUILD_AS_DLL ../src/lua/l*.c
+@%MYCOMPILE% ../src/socket/*.cpp
+@%MYCOMPILE% /DLUA_BUILD_AS_DLL ../src/lua/l*.cpp
 @del lua.obj
-@%MYLINK% /DLL /out:lua51.dll l*.obj
+@%MYLINK% /DLL /out:lua51.dll *.obj
 @if exist lua51.dll.manifest^
   @%MYMT% -manifest lua51.dll.manifest -outputresource:lua51.dll;2
 
 @rem Coplining Lua Stand-Alone interpreter
-@%MYCOMPILE% /DLUA_BUILD_AS_DLL ../src/lua.c
+@%MYCOMPILE% /DLUA_BUILD_AS_DLL ../src/lua/lua.c
 @%MYLINK% /out:lua.exe lua.obj lua51.lib
-@if exist luaserv.exe.manifest^
+@if exist lua.exe.manifest^
   @%MYMT% -manifest lua.exe.manifest -outputresource:lua.exe
 @del *.obj *.manifest
 
