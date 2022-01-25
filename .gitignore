@@ -3,3 +3,6 @@
 .vs
 .vscode
 out
+
+test\test
+test\test.exe

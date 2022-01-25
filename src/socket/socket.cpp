@@ -20,11 +20,13 @@
 #endif
 
 #include <string.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 #include <stdio.h>
 
-#include "socket.hpp"
+
+#include "socket.h"
 
 int socket_InitializeSockets() {
 #if PLATFORM == PLATFORM_WINDOWS
@@ -43,90 +45,76 @@ int socket_ShutdownSockets() {
 #endif
 }
 
-SocketInfo* socket_CreateSocket(int family, int type, int protocol) {
+SOCKETH_T socket_CreateSocket(int family, int type, int protocol) {
 	if (family == NULL)
-		family = AF_INET; // IPv4
+		family = ST_SOCK_FAMILY; // IPv4
 	if (type == NULL)
-		type = SOCK_STREAM; // TCP
+		type = ST_SOCK_TYPE; // TCP
 	SOCKETH_T hSocket = socket(family, type, protocol);
-	if (hSocket == INVALID_SOCKET)
-		return NULL;
-	SocketInfo* iSocket = (SocketInfo*)malloc(sizeof(SocketInfo));
-	iSocket->hSocket = hSocket;
-	iSocket->family = family;
-	iSocket->type = type;
-	iSocket->protocol = protocol;
-	memset(&(iSocket->socketInfo), NULL, sizeof(sockaddr_in)); // Fill socketInfo with NULL
-	return iSocket;
+	if (hSocket < 0)
+		return INVALID_SOCKET;
+	return hSocket;
 }
 
 int socket_TranslateIP(const char* ip_str, in_addr* out_ip) {
 	return inet_pton(AF_INET, ip_str, out_ip) == 1;
 }
 
-int socket_BindSocketR(SocketInfo* iSocket, in_addr ip, uint16_t port) {
+int socket_BindSocketR(SOCKETH_T hSocket, in_addr ip, uint16_t port, int family) {
+	if (family == NULL)
+		family = AF_INET; // IPv4
 	sockaddr_in* sockInfo = (sockaddr_in*)malloc(sizeof(sockaddr_in));
-	sockInfo->sin_family = iSocket->family;
+	sockInfo->sin_family = family;
 	sockInfo->sin_addr = ip;
 	sockInfo->sin_port = port;
-	iSocket->socketInfo = sockInfo;
-	return bind(iSocket->hSocket, (sockaddr*)sockInfo, (SOCKLEN_T)sizeof(*sockInfo)) == NO_ERROR;
+	return bind(hSocket, (sockaddr*)sockInfo, (SOCKLEN_T)sizeof(*sockInfo)) == NO_ERROR;
 }
 
-int socket_BindSocket(SocketInfo* iSocket, const char* ip, uint16_t port) {
+int socket_BindSocket(SOCKETH_T hSocket, const char* ip, uint16_t port, int family) {
 	in_addr ip_f;
 	if (!socket_TranslateIP(ip, &ip_f)) return 0;
-	return socket_BindSocketR(iSocket, ip_f, htons(port));
+	return socket_BindSocketR(hSocket, ip_f, htons(port), family);
 }
 
-int socket_SetSocketBlockState(SocketInfo* iScoket, int nonBlock) {
+int socket_SetSocketBlockState(SOCKETH_T hSocket, int nonBlock) {
 	int state;
 #if PLATFORM == PLATFORM_MAC || PLATFORM == PLATFORM_UNIX
 	state = fcntl( handle, F_SETFL, O_NONBLOCK, nonBlock)
 #elif PLATFORM == PLATFORM_WINDOWS
-	state = ioctlsocket(iScoket->hSocket, FIONBIO, (u_long*)&nonBlock);
+	state = ioctlsocket(hSocket, FIONBIO, (u_long*)&nonBlock);
 #endif
 	return state != -1;
 }
 
-int socket_Listen(SocketInfo* iSocket, int maxConn) {
+int socket_Listen(SOCKETH_T hSocket, int maxConn) {
 	if (maxConn == NULL) maxConn = SOMAXCONN;
-	return listen(iSocket->hSocket, maxConn) == NO_ERROR;
+	return listen(hSocket, maxConn) == NO_ERROR;
 }
 
-SocketInfo* socket_Accept(SocketInfo* iSocket) {
-	sockaddr_in* clientInfo = (sockaddr_in*)malloc(sizeof(sockaddr_in));
-	int clientInfo_size = sizeof(sockaddr_in);
-	SOCKETH_T hConnSocket = accept(iSocket->hSocket, (sockaddr*)&clientInfo, &clientInfo_size);
-	printf("hConnSocket=%d\n", hConnSocket);
-	if (hConnSocket == INVALID_SOCKET)
-		return NULL;
-	SocketInfo* iConnSocket = (SocketInfo*)malloc(sizeof(SocketInfo));
-	printf("iConnSocket=%p\n",iConnSocket);
-	iConnSocket->hSocket = hConnSocket;
-	iConnSocket->family = iSocket->family;
-	iConnSocket->type = iSocket->type;
-	iConnSocket->protocol = iSocket->protocol;
-	iConnSocket->socketInfo = clientInfo;
-	return iConnSocket;
+SOCKETH_T socket_Accept(SOCKETH_T hSocket) {
+	sockaddr_in clientInfo;
+	ZeroMemory(&clientInfo, sizeof(clientInfo));
+	int clientInfo_size = sizeof(clientInfo);
+	SOCKETH_T connSocket = accept(hSocket, (sockaddr*)&clientInfo, &clientInfo_size);
+	if (connSocket < 0)
+		return INVALID_SOCKET;
+	return connSocket;
 }
 
-ssize_t socket_Recv(SocketInfo* iSocket, char* buf, int buf_size, int flags) {
-	return recv(iSocket->hSocket, buf, buf_size, flags);
+ssize_t socket_Recv(SOCKETH_T hSocket, char* buf, int buf_size, int flags) {
+	return recv(hSocket, buf, buf_size, flags);
 }
 
-ssize_t socket_Send(SocketInfo* iSocket, const char* buf, int buf_size, int flags) {
-	return send(iSocket->hSocket, buf, buf_size, flags);
+ssize_t socket_Send(SOCKETH_T hSocket, const char* buf, int buf_size, int flags) {
+	return send(hSocket, buf, buf_size, flags);
 }
 
-void socket_Close(SocketInfo* iSocket) {
+void socket_Close(SOCKETH_T hSocket) {
 #if PLATFORM == PLATFORM_WINDOWS
-	closesocket(iSocket->hSocket);
+	closesocket(hSocket);
 #else
-	close(iSocket->hSocket);
+	close(hSocket);
 #endif
-	free(iSocket->socketInfo);
-	free(iSocket);
 }
 
 int socket_GetErrorInfo() {

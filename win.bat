@@ -7,6 +7,8 @@ REM Recommended to run from a Visual Studio developer console
 SET FILE_NAME=%~n0
 SET FILE_EXT=%~x0
 
+SET RETURN=GOTO :EOF
+
 SETLOCAL enabledelayedexpansion
 
 REM Arguments parser
@@ -56,6 +58,9 @@ FOR /l %%i IN (1,1,!ARG_0!) DO (
     SET FLAG_NO_MT=1
   ) ELSE IF !ARG_%%i! == /rm_warn (
     SET FLAG_REMOVE_WARN=1
+  ) ELSE IF !ARG_%%i! == /tst_comp (
+    CALL :TEST_COMPILE
+    %RETURN%
   ) ELSE (
     ECHO Invalid flag #%%i: !ARG_%%i!
     GOTO :PRINT_AVAILABLE_FLAGS
@@ -63,10 +68,10 @@ FOR /l %%i IN (1,1,!ARG_0!) DO (
 )
 
 IF %FLAG_REMOVE_WARN% == 0 (
-  ECHO !!!!!!!!!!!!!!!!!!!!!!!!
-  ECHO Before compiling make sure Microsoft C Compiler, linker and Windows Kits is in your path. 
-  ECHO Else, use a Visual Studio developer console
-  ECHO !!!!!!!!!!!!!!!!!!!!!!!!
+  ECHO. !!!!!!!!!!!!!!!!!!!!!!!!
+  ECHO. Before compiling make sure Microsoft C Compiler, linker and Windows Kits is in your path. 
+  ECHO. Else, use a Visual Studio developer console
+  ECHO. !!!!!!!!!!!!!!!!!!!!!!!!
   PAUSE
 )
 
@@ -109,13 +114,13 @@ REM Coplining Lua Stand-Alone interpreter
 CALL :_LINK_INTER
 
 ECHO Complining ended!
-GOTO :EOF
+%RETURN%
 
 
 REM Base compiler function
 :COMPILE_BASE
 IF %FLAG_COMPILE_BASE% == 0 (
-  GOTO :EOF
+  %RETURN%
 )
 
 CD %_OBJ_PATH%
@@ -123,13 +128,13 @@ CD %_OBJ_PATH%
 %LUA_SERVER_COMPILE% /DLUA_BUILD_AS_DLL %_LUA_SRCDIR%/l*.c
 
 CD %_OBJ_RETPATH%
-GOTO :EOF
+%RETURN%
 
 
 REM Socket compiler function
 :COMPILE_SOCKET
 IF %FLAG_COMPILE_SOCKET% == 0 (
-  GOTO :EOF
+  %RETURN%
 )
 
 CD %_OBJ_PATH%
@@ -137,13 +142,13 @@ CD %_OBJ_PATH%
 %LUA_SERVER_COMPILE% %_SOCKET_SRCDIR%/*.cpp
 
 CD %_OBJ_RETPATH%
-GOTO :EOF
+%RETURN%
 
 
 REM Socklib compiler function
 :COMPILE_SOCKLIB
 IF %FLAG_COMPILE_SOCKLIB% == 0 (
-  GOTO :EOF
+  %RETURN%
 )
 
 CD %_OBJ_PATH%
@@ -151,13 +156,13 @@ CD %_OBJ_PATH%
 %LUA_SERVER_COMPILE% /DLUA_BUILD_AS_DLL %_LUA_SRCDIR%/lsocklib.cpp
 
 CD %_OBJ_RETPATH%
-GOTO :EOF
+%RETURN%
 
 
 REM DLL Link function
 :_LINK_DLL
 IF %FLAG_NO_LINK% == 1 (
-  GOTO :EOF
+  %RETURN%
 )
 
 CD %_OBJ_PATH%
@@ -179,13 +184,13 @@ CD %_OBJ_PATH%
 REN lua.obj.~ lua.obj
 
 CD %_OBJ_RETPATH%
-GOTO :EOF
+%RETURN%
 
 
 REM Interpreter Link function
 :_LINK_INTER
 IF %FLAG_NO_LINK% == 1 (
-  GOTO :EOF
+  %RETURN%
 )
 
 CD %_OUT_PATH%
@@ -198,7 +203,22 @@ IF %FLAG_NO_MT% == 0 (
 )
 
 CD %_OUT_RETPATH%
-GOTO :EOF
+%RETURN%
+
+:TEST_COMPILE
+SET LUA_SERVER_COMPILE=cl /nologo /MD /O2 /W3 /c /D_CRT_SECURE_NO_DEPRECATE
+SET LUA_SERVER_LINK=link /nologo
+SET LUA_SERVER_MT=mt /nologo
+
+CD test
+%LUA_SERVER_COMPILE% test.cpp ../src/socket/*.cpp
+%LUA_SERVER_LINK% /out:test.exe *.obj
+IF EXIST test.exe.manifest (
+  %LUA_SERVER_MT% -manifest test.exe.manifest -outputresource:test.exe
+)
+DEL *.obj *.manifest
+CD ..
+%RETURN%
 
 ENDLOCAL
 
@@ -215,4 +235,5 @@ ECHO.   /nocmp            - Don't compile everything(expected all packages alrea
 ECHO.   /no_link          - Don't link all object files in executable and DLL
 ECHO.   /no_mt            - Don't use Windows Kits
 ECHO.   /rm_warn          - Remove warning before compilation
-GOTO :EOF
+ECHO.   /tst_comp         - Compile test.cpp file(in `test` folder)
+%RETURN%

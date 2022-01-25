@@ -335,7 +335,7 @@ static int db_errorfb (lua_State *L) {
     lua_pushliteral(L, "");
   else if (!lua_isstring(L, arg+1)) return 1;  /* message is not a string */
   else lua_pushliteral(L, "\n");
-  lua_pushliteral(L, "stack traceback:");
+  lua_pushliteral(L, "Traceback:");
   while (lua_getstack(L1, level++, &ar)) {
     if (level > LEVELS1 && firstpart) {
       /* no more than `LEVELS2' more levels? */
