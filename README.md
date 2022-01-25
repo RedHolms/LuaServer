@@ -15,4 +15,8 @@ The Installation depends on your OS:
 * On Windows:
 	- Run Visual Studio developer command prompt
 	- Run `win.bat` using VS command prompt
-	- Binaries will be stored in `out` directory
+	- Binaries will be stored in `out` directory  
+
+
+## Using
+Example of server program in `test\main.lua`
